@@ -1,2 +1,65 @@
-# mikrotik_routers
-Application for mass filter settings on MikroTik routers
+# MiFiSToFEL (MikroTik filtering setup tool for energy lasers)
+
+Приложение для массовой настройки фильтров на коммутаторах [MikroTik](https://mikrotik.wiki/wiki/%D0%97%D0%B0%D0%B3%D0%BB%D0%B0%D0%B2%D0%BD%D0%B0%D1%8F_%D1%81%D1%82%D1%80%D0%B0%D0%BD%D0%B8%D1%86%D0%B0).
+
+## Установка в Windows
+
+1. Установите [Microsoft Visual C++ 2010](https://www.microsoft.com/ru-ru/download/details.aspx?id=26999).
+
+2. Установите необходимые зависимости, запустите на исполнение скрипт **scripts\install.bat**:
+
+   ```bash
+   install.bat
+   ```
+
+## Установка в Linux
+
+Установите необходимые зависимости, запустите на исполнение скрипт **scripts/install.sh**:
+
+```bash
+bash install.sh
+```
+
+## Выпуск релиза в Windows
+
+Чтобы создать исполняемый exe-файл, запустите на исполнение скрипт **scripts\release.bat**:
+
+```bash
+release.bat
+```
+
+## Выпуск релиза в Linux
+
+Чтобы создать исполняемый бинарный файл, запустите на исполнение скрипт **scripts/release.sh**:
+
+```bash
+bash release.sh
+```
+
+## Запуск исполняемого файла в Windows
+
+Для запуска исполняемого файла **MiFiSToFEL.exe** нужно дважды кликнуть по иконке файла. Также можно перейти в командной строке в папку, в которой расположен исполняемый файл, и выполнить команду:
+
+```bash
+MiFiSToFEL.exe
+```
+
+## Запуск исполняемого файла в Linux
+
+Для запуска исполняемого файла **MiFiSToFEL** нужно дважды кликнуть по иконке файла. Также можно перейти в командной строке в папку, в которой расположен исполняемый файл, и выполнить команду:
+
+```bash
+./MiFiSToFEL
+```
+
+Если возникнет ошибка с правом доступа:
+
+```bash
+bash: ./MiFiSToFEL: Отказано в доступе
+```
+
+нужно предоставить права на выполнение. Для этого в терминале нужно выполнить команду:
+
+```bash
+chmod ugo+x MiFiSToFEL
+```
