@@ -1,9 +1,8 @@
-import ast
 import ipaddress
 import logging
 import os
 from configparser import ConfigParser
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Tuple
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
 from gui.utils import get_dir_name
 from mikrotik.mikrotik import MikroTikRouter
@@ -16,74 +15,114 @@ class ConfigData(QObject):
 
     CONFIG_PATH: str = os.path.join(get_dir_name(), "config.ini")
     DEFAULT_CONFIG_DATA: Dict[str, str] = {"user": "admin",
-                                           "password": "12345",
-                                           "ip_addresses": "[]"}
+                                           "password": "12345"}
     router_ip_address_added: pyqtSignal = pyqtSignal()
     statistics_finished: pyqtSignal = pyqtSignal()
     statistics_received: pyqtSignal = pyqtSignal(str, dict, bool)
 
     def __init__(self) -> None:
         super().__init__()
-        data = self._read_config_file()
-        self._ip_addresses: List[ipaddress.IPv4Address] = self._get_correct_ip_addresses(data["ip_addresses"])
-        self._password: str = data["password"]
-        self._user: str = data["user"]
+        self._default_data: Dict[str, str] = {}
+        self._routers: List[Dict[str, str]] = self._read_config_file()
 
-    @staticmethod
-    def _get_correct_ip_addresses(ip_addresses: List[str]) -> List[str]:
+    def _get_user_and_password_for_router(self, router_ip_address: str) -> Tuple[Optional[str], Optional[str]]:
         """
-        Method checks IP addresses and returns correct addresses.
-        :param ip_addresses: list with IP addresses.
-        :return: correct IP addresses.
+        Method returns user name and password for router with given IP address.
+        :param router_ip_address: IP address of router.
+        :return: user name and password for router.
         """
 
-        init_len = len(ip_addresses)
-        correct_ip_addresses = []
-        for ip_address in ip_addresses:
-            try:
-                ip = ipaddress.ip_address(ip_address)
-            except ValueError:
-                continue
-            correct_ip_addresses.append(ip)
-        ip_addresses = list(set(correct_ip_addresses))
-        if len(ip_addresses) != init_len:
-            logging.warning("Config file contained incorrect IP addresses")
-        return sorted(ip_addresses)
+        try:
+            ip_address = ipaddress.ip_address(router_ip_address)
+            for router in self._routers:
+                if ip_address == router.get("ip_address", None):
+                    return (router.get("user", self._default_data["user"]),
+                            router.get("password", self._default_data["password"]))
+        except Exception:
+            pass
+        logging.error("Failed to get user name and password for router %s", router_ip_address)
+        raise ValueError
 
-    def _read_config_file(self) -> Dict[str, Union[str, List[str]]]:
+    def _is_there_already_router(self, ip_address: ipaddress.IPv4Address) -> bool:
+        """
+        Method check if there is already given IP address.
+        :param ip_address: IP address of router.
+        :return: True if given IP address already exists.
+        """
+
+        for router in self._routers:
+            if ip_address == router.get("ip_address", None):
+                return True
+        return False
+
+    def _read_config_file(self) -> List[Dict[str, str]]:
         """
         Method reads config file.
-        :return: dictionary with data about login, password and IP addresses of routers.
+        :return: list with data about routers.
         """
 
         config_parser = ConfigParser()
         config_parser.read(self.CONFIG_PATH)
-        bad_config = False
+        self._read_default_user_and_password(config_parser)
+        return self._read_routers_from_config(config_parser)
+
+    def _read_default_user_and_password(self, config_parser: ConfigParser) -> None:
+        """
+        Method reads default user name and password for routers.
+        :param config_parser: config parser.
+        """
+
         if not config_parser.has_section("MAIN"):
-            logging.warning("Could not read config file")
-            bad_config = True
+            logging.warning("There are no default user name and password in config file")
             config_parser.add_section("MAIN")
-        data = {}
-        for subsection in ("user", "password", "ip_addresses"):
-            if subsection not in config_parser["MAIN"] and not bad_config:
-                logging.warning("Failed to read subsection '%s' from config file", subsection)
-            value = config_parser.get("MAIN", subsection, fallback=self.DEFAULT_CONFIG_DATA[subsection])
-            data[subsection] = ast.literal_eval(value) if subsection == "ip_addresses" else value
-        return data
+        self._default_data = {}
+        for subsection in ("user", "password"):
+            self._default_data[subsection] = config_parser.get("MAIN", subsection,
+                                                               fallback=self.DEFAULT_CONFIG_DATA[subsection])
 
-    def _save_to_config_file(self, config_data: Dict[str, Union[str, List[str]]]) -> None:
+    @staticmethod
+    def _read_routers_from_config(config_parser: ConfigParser) -> List[Dict[str, str]]:
         """
-        Method saves data about login, password and IP addresses of routers to config file.
-        :param config_data: data to save.
+        Method reads router parameters from config file.
+        :param config_parser: config parser.
+        :return: list with data about routers.
         """
 
-        config_parser = ConfigParser()
+        data = []
+        for section in config_parser.sections():
+            try:
+                ip_address = ipaddress.ip_address(section)
+            except Exception:
+                continue
+            router_data = {"ip_address": ip_address,
+                           "user": config_parser.get(section, "user", fallback=None),
+                           "password": config_parser.get(section, "password", fallback=None)}
+            data.append(router_data)
+        return sorted(data, key=lambda x: x["ip_address"])
+
+    def _save_default_to_config_file(self, config_parser: ConfigParser) -> None:
+        """
+        Method saves default data (user name and password) to config file.
+        :param config_parser: config parser.
+        """
+
         config_parser.add_section("MAIN")
-        for key, value in config_data.items():
-            if value is not None:
-                config_parser.set("MAIN", key, str(value))
-        with open(self.CONFIG_PATH, "w", encoding="utf-8") as file:
-            config_parser.write(file)
+        for key, value in self._default_data.items():
+            config_parser.set("MAIN", key, value)
+
+    def _save_routers_to_config_file(self, config_parser: ConfigParser) -> None:
+        """
+        Method saves data about routers to config file.
+        :param config_parser: config parser.
+        """
+
+        for router_data in self._routers:
+            section = str(router_data["ip_address"])
+            config_parser.add_section(section)
+            if router_data.get("user", None) is not None:
+                config_parser.set(section, "user", router_data["user"])
+            if router_data.get("password", None) is not None:
+                config_parser.set(section, "password", router_data["password"])
 
     @pyqtSlot(str, str, str)
     def add_filter_to_router(self, router_ip_address: str, mac_address: str, target: str) -> None:
@@ -95,7 +134,8 @@ class ConfigData(QObject):
         """
 
         try:
-            router = MikroTikRouter(router_ip_address, self._user, self._password)
+            user, password = self._get_user_and_password_for_router(router_ip_address)
+            router = MikroTikRouter(router_ip_address, user, password)
             router.add_filter(mac_address, target)
             router.close()
             logging.info("Filter %s %s was added to router %s", mac_address, target, router_ip_address)
@@ -114,11 +154,11 @@ class ConfigData(QObject):
         except ValueError:
             logging.warning("Incorrect IP address: %s", str(ip_address))
             return
-        if ip_address in self._ip_addresses:
+        if self._is_there_already_router(ip_address):
             logging.warning("Router with IP address %s already exists", str(ip_address))
             return
-        self._ip_addresses.append(ip_address)
-        self._ip_addresses = sorted(self._ip_addresses)
+        self._routers.append({"ip_address": ip_address})
+        self._routers = sorted(self._routers, key=lambda x: x["ip_address"])
         self.router_ip_address_added.emit()
         logging.info("Added IP address %s", str(ip_address))
 
@@ -133,7 +173,8 @@ class ConfigData(QObject):
         """
 
         try:
-            router = MikroTikRouter(router_ip_address, self._user, self._password)
+            user, password = self._get_user_and_password_for_router(router_ip_address)
+            router = MikroTikRouter(router_ip_address, user, password)
             router.enable_filter(mac_address, target, state)
             router.close()
             logging.info("Filter %s %s state on the router %s was changed", mac_address, target, router_ip_address)
@@ -151,7 +192,8 @@ class ConfigData(QObject):
         """
 
         try:
-            router = MikroTikRouter(router_ip_address, self._user, self._password)
+            user, password = self._get_user_and_password_for_router(router_ip_address)
+            router = MikroTikRouter(router_ip_address, user, password)
             if not router.delete_filter(mac_address, target):
                 logging.error("Failed to delete filter %s %s from router %s: filter not found", mac_address, target,
                               router_ip_address)
@@ -170,7 +212,12 @@ class ConfigData(QObject):
 
         try:
             ip_address = ipaddress.ip_address(router_ip_address)
-            self._ip_addresses.remove(ip_address)
+            router_index = None
+            for index, router in enumerate(self._routers):
+                if router.get("ip_address") == ip_address:
+                    router_index = index
+            if router_index is not None:
+                self._routers.pop(router_index)
             logging.info("Router %s was deleted", router_ip_address)
         except Exception:
             logging.error("Failed to delete router %s", router_ip_address)
@@ -181,23 +228,24 @@ class ConfigData(QObject):
         Slot receives filter statistics from all known routers.
         """
 
-        for ip_address in self._ip_addresses:
-            str_ip_address = str(ip_address)
+        for router in self._routers:
+            router_ip_address = str(router.get("ip_address", None))
             statistics = {}
             bad_router = False
             try:
-                router = MikroTikRouter(str_ip_address, self._user, self._password)
+                user, password = self._get_user_and_password_for_router(router_ip_address)
+                router = MikroTikRouter(router_ip_address, user, password)
             except Exception:
                 bad_router = True
-                logging.error("Failed to connect to router %s", str_ip_address)
+                logging.error("Failed to connect to router %s", router_ip_address)
             try:
                 statistics = router.get_statistics()
             except Exception:
                 bad_router = True
-                logging.error("Failed to receive filter statistics from router %s", str_ip_address)
+                logging.error("Failed to receive filter statistics from router %s", router_ip_address)
             else:
                 router.close()
-            self.statistics_received.emit(str_ip_address, statistics, bad_router)
+            self.statistics_received.emit(router_ip_address, statistics, bad_router)
         self.statistics_finished.emit()
 
     def save(self) -> None:
@@ -205,7 +253,8 @@ class ConfigData(QObject):
         Method saves config data to config file.
         """
 
-        data = {"user": self._user,
-                "password": self._password,
-                "ip_addresses": [str(ip_address) for ip_address in self._ip_addresses]}
-        self._save_to_config_file(data)
+        config_parser = ConfigParser()
+        self._save_default_to_config_file(config_parser)
+        self._save_routers_to_config_file(config_parser)
+        with open(self.CONFIG_PATH, "w", encoding="utf-8") as file:
+            config_parser.write(file)
