@@ -10,13 +10,12 @@ python3 -m venv venv
 ./venv/bin/python3 -m pip install pyinstaller
 
 ./venv/bin/pyinstaller main.py --clean --onefile \
---add-data "./gui/*:gui" \
---icon=gui/icon.ico
+--add-data "./media/*:media" \
+--icon=media/icon.ico
 
-cp readme_for_release.md ./dist
+cp README_FOR_RELEASE.md ./dist/README.md
 mv dist release
-mv ./release/main ./release/gige_camera_gui
-mv ./release/readme_for_release.md ./release/readme.md
+mv ./release/main ./release/MiFiSToFEL
 
 rm -rf build
 rm -rf dist
