@@ -5,6 +5,7 @@ import os
 from configparser import ConfigParser
 from typing import Dict, List, Union
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
+from gui.utils import get_dir_name
 from mikrotik.mikrotik import MikroTikRouter
 
 
@@ -13,7 +14,7 @@ class ConfigData(QObject):
     Class to save data from config file.
     """
 
-    CONFIG_PATH: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config.ini")
+    CONFIG_PATH: str = os.path.join(get_dir_name(), "config.ini")
     DEFAULT_CONFIG_DATA: Dict[str, str] = {"user": "admin",
                                            "password": "12345",
                                            "ip_addresses": "[]"}
