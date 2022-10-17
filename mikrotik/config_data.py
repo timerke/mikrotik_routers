@@ -267,3 +267,16 @@ class ConfigData(QObject):
         self._save_routers_to_config_file(config_parser)
         with open(self.CONFIG_PATH, "w", encoding="utf-8") as file:
             config_parser.write(file)
+
+    @pyqtSlot(dict, list)
+    def set_new_default_data_and_routers(self, new_default_data: Dict[str, str],
+                                         new_routers_data: List[Dict[str, str]]) -> None:
+        """
+        Slot sets new default user name and password and new routers data.
+        :param new_default_data: dictionary with new default user name and password;
+        :param new_routers_data: list with new routers data.
+        """
+
+        self._default_data = new_default_data
+        self._routers = new_routers_data
+        logging.info("New parameters were set for routers")

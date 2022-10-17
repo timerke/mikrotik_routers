@@ -4,7 +4,7 @@ from typing import Dict, List
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QDialog, QLayout
+from PyQt5.QtWidgets import QComboBox, QDialog, QLayout
 from gui import utils as ut
 
 
@@ -19,10 +19,12 @@ class RouterParamsDialogWindow(QDialog):
     """
 
     data_should_be_send: pyqtSignal = pyqtSignal()
+    new_data_should_be_set: pyqtSignal = pyqtSignal(dict, list)
 
     def __init__(self) -> None:
         super().__init__()
         self._default_data: Dict[str, str] = {}
+        self._mode: DialogMode = None
         self._routers: List[Dict[str, str]] = []
         self._router_ip_address: str = ""
         self._init_ui()
@@ -36,9 +38,12 @@ class RouterParamsDialogWindow(QDialog):
         self.setWindowTitle("Настройки роутеров")
         self.setWindowIcon(QIcon(os.path.join(ut.DIR_MEDIA, "icon.png")))
         self._set_default_user_and_password()
+        self.combo_box_ip_addresses.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.combo_box_ip_addresses.lineEdit().setReadOnly(True)
         self.combo_box_ip_addresses.currentTextChanged.connect(self.set_params_for_router)
         self._set_routers_data()
+        self.button_ok.clicked.connect(self.change_data)
+        self.button_cancel.clicked.connect(self.close)
 
     def _set_default_user_and_password(self) -> None:
         """
@@ -57,6 +62,22 @@ class RouterParamsDialogWindow(QDialog):
         self.combo_box_ip_addresses.clear()
         self.combo_box_ip_addresses.addItems(ip_addresses)
 
+    @pyqtSlot()
+    def change_data(self) -> None:
+        """
+        Method changes default user name and password and routers data.
+        """
+
+        self._default_data = {"user": self.line_edit_default_user_name.text(),
+                              "password": self.line_edit_default_password.text()}
+        for router in self._routers:
+            if str(router.get("ip_address", "")) == self.combo_box_ip_addresses.currentText():
+                router["user"] = self.line_edit_user_name.text() if self.line_edit_user_name.text() else None
+                router["password"] = self.line_edit_password.text() if self.line_edit_password.text() else None
+                break
+        self.new_data_should_be_set.emit(self._default_data, self._routers)
+        self.close()
+
     @pyqtSlot(dict, list)
     def set_new_data(self, default_data: Dict[str, str], routers: List[Dict[str, str]]) -> None:
         """
@@ -69,6 +90,8 @@ class RouterParamsDialogWindow(QDialog):
         self._routers = routers
         self._set_default_user_and_password()
         self._set_routers_data()
+        if self._mode is DialogMode.SINGLE:
+            self.combo_box_ip_addresses.setCurrentText(self._router_ip_address)
 
     @pyqtSlot(str)
     def set_params_for_router(self, router_ip_address: str) -> None:
@@ -94,6 +117,8 @@ class RouterParamsDialogWindow(QDialog):
         :param router_ip_address: IP address of current router.
         """
 
+        self._mode = mode
+        self._router_ip_address = router_ip_address
         self.group_box_default.setVisible(mode is DialogMode.ALL)
         self.combo_box_ip_addresses.setEnabled(mode is DialogMode.ALL)
         self.setFixedSize(self.sizeHint())

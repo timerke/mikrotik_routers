@@ -76,6 +76,7 @@ class MainWindow(QMainWindow):
         self._config_data.router_ip_address_added.connect(self.filter_table.send_signal_to_update_table)
         self._config_data.statistics_finished.connect(lambda: self.enable_widgets(True))
         self._config_data.statistics_received.connect(self.filter_table.add_statistics)
+        self._dialog_window.new_data_should_be_set.connect(self._config_data.set_new_default_data_and_routers)
         self.router_ip_address_should_be_added.connect(self._config_data.add_ip_address)
         self._thread.finished.connect(self._config_data.save)
         self.filter_table.send_signal_to_update_table()
