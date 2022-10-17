@@ -392,7 +392,6 @@ class FilterTable(QTableWidget):
             self.removeColumn(column)
         else:
             self._clear_content_in_table()
-        self._set_column_size_policy()
         router_index = None
         for index, (ip_address, _, _) in enumerate(self._data):
             if ip_address == router_ip_address:
@@ -400,6 +399,7 @@ class FilterTable(QTableWidget):
                 break
         if router_index is not None:
             self._data.pop(router_index)
+        self._set_column_size_policy()
         self.router_should_be_deleted.emit(router_ip_address)
 
     @pyqtSlot(str)

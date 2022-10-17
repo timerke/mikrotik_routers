@@ -61,6 +61,7 @@ class RouterParamsDialogWindow(QDialog):
         ip_addresses = [str(router.get("ip_address", "")) for router in self._routers]
         self.combo_box_ip_addresses.clear()
         self.combo_box_ip_addresses.addItems(ip_addresses)
+        self.group_box_router.setEnabled(bool(self._routers))
 
     @pyqtSlot()
     def change_data(self) -> None:

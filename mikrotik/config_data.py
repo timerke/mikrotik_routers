@@ -138,6 +138,10 @@ class ConfigData(QObject):
             user, password = self._get_user_and_password_for_router(router_ip_address)
             router = MikroTikRouter(router_ip_address, user, password)
             router.add_filter(mac_address, target)
+            filter_index = router.get_indices_of_filter(mac_address, target)[-1]
+            drop_indices = router.get_indices_of_drop_filters()
+            if drop_indices:
+                router.move_filter(filter_index, drop_indices[0])
             router.close()
             logging.info("Filter %s %s was added to router %s", mac_address, target, router_ip_address)
         except Exception:
@@ -158,7 +162,9 @@ class ConfigData(QObject):
         if self._is_there_already_router(ip_address):
             logging.warning("Router with IP address %s already exists", str(ip_address))
             return
-        self._routers.append({"ip_address": ip_address})
+        self._routers.append({"ip_address": ip_address,
+                              "user": None,
+                              "password": None})
         self._routers = sorted(self._routers, key=lambda x: x["ip_address"])
         self.router_ip_address_added.emit()
         logging.info("Added IP address %s", str(ip_address))
