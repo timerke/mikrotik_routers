@@ -35,7 +35,7 @@ class RouterParamsDialogWindow(QDialog):
         """
 
         loadUi(os.path.join(ut.DIR_MEDIA, "router_params_dialog_window.ui"), self)
-        self.setWindowTitle("Настройки роутеров")
+        self.setWindowTitle("Настройки коммутаторов")
         self.setWindowIcon(QIcon(os.path.join(ut.DIR_MEDIA, "icon.png")))
         self._set_default_user_and_password()
         self.combo_box_ip_addresses.setSizeAdjustPolicy(QComboBox.AdjustToContents)

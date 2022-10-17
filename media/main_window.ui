@@ -130,7 +130,7 @@
      <normaloff>settings.png</normaloff>settings.png</iconset>
    </property>
    <property name="text">
-    <string>Настройки роутеров</string>
+    <string>Настройки коммутаторов</string>
    </property>
   </action>
  </widget>

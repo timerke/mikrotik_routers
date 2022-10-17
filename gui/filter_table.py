@@ -468,11 +468,11 @@ class FilterTable(QTableWidget):
 
         router_ip_address = label.text()
         action_add_params: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "settings.png")),
-                                             f"Задать параметры подключения к роутеру {router_ip_address}")
+                                             f"Задать параметры подключения к коммутатору {router_ip_address}")
         action_add_params.triggered.connect(lambda: self.dialog_window_should_be_displayed.emit(DialogMode.SINGLE,
                                                                                                 router_ip_address))
         action_delete: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "delete.png")),
-                                         f"Удалить роутер {router_ip_address}")
+                                         f"Удалить коммутатор {router_ip_address}")
         action_delete.triggered.connect(lambda: self.delete_router(column, router_ip_address))
         menu: QMenu = QMenu()
         menu.addAction(action_add_params)
