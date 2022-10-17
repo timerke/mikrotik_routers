@@ -105,7 +105,7 @@ class MikroTikRouter:
         """
 
         indices = []
-        for filter_index, (filter_mac, filter_target, filter_status, _) in enumerate(self._get_total_statistics()):
+        for filter_index, (filter_mac, filter_target, _, _) in enumerate(self._get_total_statistics()):
             if filter_mac == mac_address and filter_target == target:
                 indices.append(filter_index)
         return indices

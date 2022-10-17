@@ -247,11 +247,11 @@ class FilterTable(QTableWidget):
         :return: IP addresses of routers.
         """
 
-        for router_ip_address, statistics, bad_router in self._data:
+        for column, (router_ip_address, statistics, bad_router) in enumerate(self._data, start=1):
             if bad_router:
                 continue
             if statistics.get((mac_address, target), None) is None:
-                yield router_ip_address
+                yield column, router_ip_address
 
     def _init_ui(self) -> None:
         """
@@ -325,7 +325,9 @@ class FilterTable(QTableWidget):
         if row_and_column:
             row = row_and_column[0]
             mac_address, target = self.cellWidget(row, 0).text().split()
-            for router_ip_address in self._get_routers_without_filter(mac_address, target):
+            for column, router_ip_address in self._get_routers_without_filter(mac_address, target):
+                combo_box = self.cellWidget(row, column)
+                combo_box.setCurrentText("Вкл")
                 self.filter_should_be_added.emit(router_ip_address, mac_address, target)
 
     @pyqtSlot(str, str)
