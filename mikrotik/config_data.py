@@ -16,6 +16,7 @@ class ConfigData(QObject):
     CONFIG_PATH: str = os.path.join(get_dir_name(), "config.ini")
     DEFAULT_CONFIG_DATA: Dict[str, str] = {"user": "admin",
                                            "password": "12345"}
+    data_for_dialog_window_send: pyqtSignal = pyqtSignal(dict, list)
     router_ip_address_added: pyqtSignal = pyqtSignal()
     statistics_finished: pyqtSignal = pyqtSignal()
     statistics_received: pyqtSignal = pyqtSignal(str, dict, bool)
@@ -36,8 +37,8 @@ class ConfigData(QObject):
             ip_address = ipaddress.ip_address(router_ip_address)
             for router in self._routers:
                 if ip_address == router.get("ip_address", None):
-                    return (router.get("user", self._default_data["user"]),
-                            router.get("password", self._default_data["password"]))
+                    return (router["user"] if router["user"] is not None else self._default_data["user"],
+                            router["password"] if router["password"] is not None else self._default_data["password"])
         except Exception:
             pass
         logging.error("Failed to get user name and password for router %s", router_ip_address)
@@ -181,6 +182,14 @@ class ConfigData(QObject):
         except Exception:
             logging.error("Failed to change filter %s %s state on the router %s", mac_address, target,
                           router_ip_address)
+
+    @pyqtSlot()
+    def collect_data_for_dialog_window(self):
+        """
+        Slot sends data for dialog window to change router parameters.
+        """
+
+        self.data_for_dialog_window_send.emit(self._default_data, self._routers)
 
     @pyqtSlot(str, str, str)
     def delete_filter_from_router(self, router_ip_address: str, mac_address: str, target: str) -> None:

@@ -6,6 +6,7 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot, QPoint, Qt
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QAction, QComboBox, QHeaderView, QLabel, QMenu, QPushButton, QSizePolicy, QTableWidget,
                              QWidget)
+from gui.router_params_dialog_window import DialogMode
 from gui.utils import DIR_MEDIA
 from gui.vertical_label import VerticalLabel
 
@@ -17,6 +18,7 @@ class FilterTable(QTableWidget):
 
     INITIAL_COLUMN_COUNT: int = 4
     INITIAL_ROW_COUNT: int = 2
+    dialog_window_should_be_displayed: pyqtSignal = pyqtSignal(DialogMode, str)
     filter_should_be_added: pyqtSignal = pyqtSignal(str, str, str)
     filter_should_be_changed: pyqtSignal = pyqtSignal(str, str, str, str)
     filter_should_be_deleted: pyqtSignal = pyqtSignal(str, str, str)
@@ -463,9 +465,14 @@ class FilterTable(QTableWidget):
         """
 
         router_ip_address = label.text()
+        action_add_params: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "settings.png")),
+                                             f"Задать параметры подключения к роутеру {router_ip_address}")
+        action_add_params.triggered.connect(lambda: self.dialog_window_should_be_displayed.emit(DialogMode.SINGLE,
+                                                                                                router_ip_address))
         action_delete: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "delete.png")),
                                          f"Удалить роутер {router_ip_address}")
         action_delete.triggered.connect(lambda: self.delete_router(column, router_ip_address))
         menu: QMenu = QMenu()
+        menu.addAction(action_add_params)
         menu.addAction(action_delete)
         menu.exec_(label.mapToGlobal(position))

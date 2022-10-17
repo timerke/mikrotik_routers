@@ -9,6 +9,7 @@ from gui import utils as ut
 from gui.filter_table import FilterTable
 from gui.log_table import LogTable
 from gui.logger import LoggingHandler
+from gui.router_params_dialog_window import DialogMode, RouterParamsDialogWindow
 from mikrotik.config_data import ConfigData
 
 
@@ -33,6 +34,7 @@ class MainWindow(QMainWindow):
         self.filter_table: FilterTable = FilterTable()
         self.log_table: LogTable = LogTable()
         self._config_data: ConfigData = ConfigData()
+        self._dialog_window: RouterParamsDialogWindow = RouterParamsDialogWindow()
         self._thread: QThread = QThread(parent=self)
         self._thread.setTerminationEnabled(True)
         self._config_data.moveToThread(self._thread)
@@ -61,6 +63,8 @@ class MainWindow(QMainWindow):
         """
 
         logging_forwarder.log_received.connect(self.log_table.add_log)
+        self.filter_table.dialog_window_should_be_displayed.connect(self.show_dialog_window)
+        self.filter_table.dialog_window_should_be_displayed.connect(self._config_data.collect_data_for_dialog_window)
         self.filter_table.filter_should_be_added.connect(self._config_data.add_filter_to_router)
         self.filter_table.filter_should_be_changed.connect(self._config_data.change_filter_state)
         self.filter_table.filter_should_be_deleted.connect(self._config_data.delete_filter_from_router)
@@ -68,6 +72,7 @@ class MainWindow(QMainWindow):
         self.filter_table.table_should_be_updated.connect(self._config_data.get_statistics)
         self.filter_table.table_should_be_updated.connect(lambda: self.enable_widgets(False))
         self.mac_address_should_be_added.connect(self.filter_table.add_filter_to_table)
+        self._config_data.data_for_dialog_window_send.connect(self._dialog_window.set_new_data)
         self._config_data.router_ip_address_added.connect(self.filter_table.send_signal_to_update_table)
         self._config_data.statistics_finished.connect(lambda: self.enable_widgets(True))
         self._config_data.statistics_received.connect(self.filter_table.add_statistics)
@@ -86,6 +91,8 @@ class MainWindow(QMainWindow):
         self.vertical_layout_for_filter_table.addWidget(self.filter_table)
         self.vertical_layout_for_log_table.addWidget(self.log_table)
 
+        self.action_router_params.triggered.connect(lambda: self.show_dialog_window(DialogMode.ALL, ""))
+        self.action_router_params.triggered.connect(self._config_data.collect_data_for_dialog_window)
         mac_address_validator = QRegExpValidator(QRegExp(r"^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2}) (SRC|src|DST|dst)$"))
         self.line_edit_mac_address.setValidator(mac_address_validator)
         self.line_edit_mac_address.returnPressed.connect(self.add_mac_address)
@@ -157,3 +164,13 @@ class MainWindow(QMainWindow):
         for widget in (self.filter_table, self.button_add_mac_address, self.button_add_router_ip_address,
                        self.line_edit_mac_address, self.line_edit_router_ip_address):
             widget.setEnabled(enable)
+
+    @pyqtSlot(DialogMode, str)
+    def show_dialog_window(self, mode: DialogMode, router_ip_address: str) -> None:
+        """
+        Slot shows dialog window to change router parameters.
+        :param mode: mode for dialog window;
+        :param router_ip_address: IP address of current router.
+        """
+
+        self._dialog_window.show_mode(mode, router_ip_address)
