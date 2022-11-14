@@ -1,7 +1,7 @@
 import logging
 import os
 from functools import partial
-from typing import Dict, Generator, List, Optional, Set, Tuple
+from typing import Dict, Generator, List, Optional, Tuple
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, QPoint, Qt
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QAction, QComboBox, QHeaderView, QLabel, QMenu, QPushButton, QSizePolicy, QTableWidget,
@@ -19,7 +19,7 @@ class FilterTable(QTableWidget):
     INITIAL_COLUMN_COUNT: int = 4
     INITIAL_ROW_COUNT: int = 2
     dialog_window_should_be_displayed: pyqtSignal = pyqtSignal(DialogMode, str)
-    filter_should_be_added: pyqtSignal = pyqtSignal(str, str, str)
+    filter_should_be_added: pyqtSignal = pyqtSignal(str, str, str, str)
     filter_should_be_changed: pyqtSignal = pyqtSignal(str, str, str, str)
     filter_should_be_deleted: pyqtSignal = pyqtSignal(str, str, str)
     router_should_be_deleted: pyqtSignal = pyqtSignal(str)
@@ -31,8 +31,8 @@ class FilterTable(QTableWidget):
         self.buttons_to_delete: List[QPushButton] = []
         self.buttons_to_distribute: List[QPushButton] = []
         self.combo_boxes_enable_filters: List[QComboBox] = []
-        self._data: List[Tuple[str, Dict[Tuple[str, str], Optional[str]], bool]] = []
-        self._mac_and_targets: Set[Tuple[str, str]] = set()
+        self._data: List[Tuple[str, Dict[Tuple[str, str], Dict[str, str]], bool]] = []
+        self._mac_and_targets: Dict[Tuple[str, str], str] = {}
         self._init_ui()
 
     def _add_button_to_delete(self, row: int, column: int, mac_address: str, target: str) -> None:
@@ -47,7 +47,7 @@ class FilterTable(QTableWidget):
 
         button: QPushButton = QPushButton("")
         button.setIcon(QIcon(os.path.join(DIR_MEDIA, "delete.png")))
-        button.setToolTip(f"Удалить фильтр {mac_address} {target.upper()} из всех коммутаторов")
+        button.setToolTip(f"Удалить фильтр {mac_address} {target} из всех коммутаторов")
         button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         button.clicked.connect(self.delete_filter_from_all_routers)
         self.buttons_to_delete.append(button)
@@ -73,40 +73,43 @@ class FilterTable(QTableWidget):
         self.setCellWidget(row, column, button)
         return button
 
-    def _add_filter_label(self, row: int, mac_address: str, target: str) -> None:
+    def _add_filter_label(self, row: int, mac_address: str, target: str, comment: str) -> None:
         """
         Method creates label for filter with given MAC address and target.
         :param row: row in table for label;
         :param mac_address: MAC address of filter;
-        :param target: target (SRC or DST) of filter.
+        :param target: target (SRC or DST) of filter;
+        :param comment: comment for filter.
         """
 
-        label_filter: QLabel = QLabel(f"{mac_address} {target}")
+        label_filter: QLabel = QLabel(f"{mac_address} {target}" if not comment else
+                                      f"{mac_address} {target}\n{comment}")
         label_filter.setContextMenuPolicy(Qt.CustomContextMenu)
         label_filter.customContextMenuRequested.connect(partial(self.show_context_menu_for_filter, label_filter, row))
         self.setCellWidget(row, 0, label_filter)
 
-    def _add_new_filter(self, row: int, mac_address: str, target: str) -> None:
+    def _add_new_filter(self, row: int, mac_address: str, target: str, comment: str) -> None:
         """
         Method add new row with filter with given MAC address and target to table.
         :param row: row in table for filter;
         :param mac_address: MAC address of filter;
-        :param target: target (SRC or DST) of filter.
+        :param target: target (SRC or DST) of filter;
+        :param comment: comment for filter.
         """
 
         self.insertRow(row)
-        self._add_filter_label(row, mac_address, target)
+        self._add_filter_label(row, mac_address, target, comment)
         for column, (_, statistics, bad_router) in enumerate(self._data, start=1):
             combo_box = self._create_combo_box(mac_address, target, statistics, bad_router)
             self.combo_boxes_enable_filters.append(combo_box)
             self.setCellWidget(row, column, combo_box)
 
-    def _add_router(self, mac_and_targets: List[Tuple[str, str]], router_index: int, router_ip_address: str,
-                    router_statistics: Dict[Tuple[str, str], Optional[str]], bad_router: bool) -> None:
+    def _add_router(self, mac_and_targets: List[Tuple[str, str, str]], router_index: int, router_ip_address: str,
+                    router_statistics: Dict[Tuple[str, str], Dict[str, str]], bad_router: bool) -> None:
         """
         Method adds new column with router statistics.
-        :param mac_and_targets: list with MAC addresses and filter targets (SRC or DST)
-        in first column of table;
+        :param mac_and_targets: list with MAC addresses, filter targets (SRC or DST)
+        and comments in first column of table;
         :param router_index: index of router;
         :param router_ip_address: IP address of router;
         :param router_statistics: router filter statistics;
@@ -118,7 +121,7 @@ class FilterTable(QTableWidget):
             self.insertColumn(column)
             self.setSpan(0, 1, 1, column)
         self._add_router_label(column, router_ip_address, bad_router)
-        for row, (mac_address, target) in enumerate(mac_and_targets, start=2):
+        for row, (mac_address, target, _) in enumerate(mac_and_targets, start=2):
             combo_box = self._create_combo_box(mac_address, target, router_statistics, bad_router)
             self.combo_boxes_enable_filters.append(combo_box)
             self.setCellWidget(row, column, combo_box)
@@ -153,7 +156,7 @@ class FilterTable(QTableWidget):
             self.removeRow(self.rowCount() - 1)
         self.removeCellWidget(1, 1)
 
-    def _create_combo_box(self, mac_address: str, target: str, statistics: Dict[Tuple[str, str], Optional[str]],
+    def _create_combo_box(self, mac_address: str, target: str, statistics: Dict[Tuple[str, str], Dict[str, str]],
                           bad_router: bool) -> QComboBox:
         """
         Method creates combo box widget to enable/disable filter in router.
@@ -173,44 +176,44 @@ class FilterTable(QTableWidget):
         combo_box.lineEdit().setReadOnly(True)
         combo_box.lineEdit().setAlignment(Qt.AlignCenter)
         combo_box.addItems(["Вкл", "Выкл", "-"])
-        combo_box.setCurrentText(get_current_text(statistics[(mac_address, target)]))
+        combo_box.setCurrentText(get_current_text(statistics[(mac_address, target)].get("disabled", "")))
         combo_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         combo_box.currentTextChanged.connect(self.enable_filter)
         combo_box.setDisabled(bad_router)
         return combo_box
 
-    def _fill_column_with_delete_buttons(self, mac_and_targets: List[Tuple[str, str]], column: int) -> None:
+    def _fill_column_with_delete_buttons(self, mac_and_targets: List[Tuple[str, str, str]], column: int) -> None:
         """
         Method creates buttons to delete filter from all routers in table.
         :param mac_and_targets: list with MAC addresses and filter targets (SRC or DST)
-        in first column of table;
+        and comments in first column of table;
         :param column: column to place buttons.
         """
 
-        for row, (mac_address, target) in enumerate(mac_and_targets, start=2):
+        for row, (mac_address, target, _) in enumerate(mac_and_targets, start=2):
             self._add_button_to_delete(row, column, mac_address, target)
 
-    def _fill_column_with_distribute_buttons(self, mac_and_targets: List[Tuple[str, str]], column: int) -> None:
+    def _fill_column_with_distribute_buttons(self, mac_and_targets: List[Tuple[str, str, str]], column: int) -> None:
         """
         Method creates buttons to add filter to all routers in table.
         :param mac_and_targets: list with MAC addresses and filter targets (SRC or DST)
-        in first column of table;
+        and comments in first column of table;
         :param column: column to place buttons.
         """
 
-        for row, (mac_address, target) in enumerate(mac_and_targets, start=2):
+        for row, (mac_address, target, _) in enumerate(mac_and_targets, start=2):
             self._add_button_to_distribute(row, column, mac_address, target)
 
-    def _fill_column_with_filters(self, mac_and_targets: List[Tuple[str, str]]) -> None:
+    def _fill_column_with_filters(self, mac_and_targets: List[Tuple[str, str, str]]) -> None:
         """
         Method fills first column with filters.
-        :param mac_and_targets: list with MAC addresses and filter targets (SRC or DST)
-        in first column of table.
+        :param mac_and_targets: list with MAC addresses, filter targets (SRC or DST)
+        and comments in first column of table.
         """
 
         self.setRowCount(len(mac_and_targets) + self.INITIAL_ROW_COUNT)
-        for row, (mac_address, target) in enumerate(mac_and_targets, start=2):
-            self._add_filter_label(row, mac_address, target)
+        for row, (mac_address, target, comment) in enumerate(mac_and_targets, start=2):
+            self._add_filter_label(row, mac_address, target, comment)
 
     def _get_row_and_column(self, widget: QWidget) -> Optional[Tuple[int, int]]:
         """
@@ -236,7 +239,7 @@ class FilterTable(QTableWidget):
         for router_ip_address, statistics, bad_router in self._data:
             if bad_router:
                 continue
-            if statistics.get((mac_address, target), None) is not None:
+            if statistics.get((mac_address, target), None):
                 yield router_ip_address
 
     def _get_routers_without_filter(self, mac_address: str, target: str) -> Generator:
@@ -244,13 +247,13 @@ class FilterTable(QTableWidget):
         Method returns IP addresses of routers that have not given filter.
         :param mac_address: MAC address of filter;
         :param target: target (SRC or DST) of filter.
-        :return: IP addresses of routers.
+        :return: column for router in table and IP addresses of routers.
         """
 
         for column, (router_ip_address, statistics, bad_router) in enumerate(self._data, start=1):
             if bad_router:
                 continue
-            if statistics.get((mac_address, target), None) is None:
+            if not statistics.get((mac_address, target), None):
                 yield column, router_ip_address
 
     def _init_ui(self) -> None:
@@ -282,8 +285,8 @@ class FilterTable(QTableWidget):
         for column in range(column_number):
             self.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeToContents)
 
-    def _update_data(self, new_router_ip_address: str, new_router_statistics: Dict[Tuple[str, str], Optional[str]],
-                     bad_router: bool) -> List[Tuple[str, str]]:
+    def _update_data(self, new_router_ip_address: str, new_router_statistics: Dict[Tuple[str, str], Dict[str, str]],
+                     bad_router: bool) -> List[Tuple[str, str, str]]:
         """
         Method updates data with router statistics.
         :param new_router_ip_address: IP address of new router;
@@ -292,20 +295,24 @@ class FilterTable(QTableWidget):
         :return: list with MAC addresses and targets of all filters.
         """
 
-        for mac_and_target in new_router_statistics.keys():
-            self._mac_and_targets.add(mac_and_target)
-        mac_and_targets = sorted(list(self._mac_and_targets), key=lambda x: (x[0], x[1]))
+        for mac_and_target, data in new_router_statistics.items():
+            if data.get("comment", None) and not self._mac_and_targets.get(mac_and_target, None):
+                self._mac_and_targets[mac_and_target] = data["comment"]
+            elif mac_and_target not in self._mac_and_targets:
+                self._mac_and_targets[mac_and_target] = ""
+        mac_and_targets = sorted([(*mac_and_target, comment) for mac_and_target, comment in
+                                  self._mac_and_targets.items()], key=lambda x: (x[0], x[1]))
         self._data.append((new_router_ip_address, new_router_statistics, bad_router))
         for _, router_statistics, _ in self._data:
-            for mac_and_target in mac_and_targets:
+            for mac_and_target in self._mac_and_targets.keys():
                 if mac_and_target not in router_statistics:
-                    router_statistics[mac_and_target] = None
+                    router_statistics[mac_and_target] = {}
         return mac_and_targets
 
-    def _update_table(self, mac_and_targets: List[Tuple[str, str]]) -> None:
+    def _update_table(self, mac_and_targets: List[Tuple[str, str, str]]) -> None:
         """
         Method updates table.
-        :param mac_and_targets: list with MAC addresses and targets of all filters.
+        :param mac_and_targets: list with MAC addresses, targets and comments of all filters.
         """
 
         self._fill_column_with_filters(mac_and_targets)
@@ -324,11 +331,13 @@ class FilterTable(QTableWidget):
         row_and_column = self._get_row_and_column(self.sender())
         if row_and_column:
             row = row_and_column[0]
-            mac_address, target = self.cellWidget(row, 0).text().split()
+            result = self.cellWidget(row, 0).text().split("\n")
+            mac_address, target = result[0].split()
+            comment = "" if len(result) == 1 else result[1]
             for column, router_ip_address in self._get_routers_without_filter(mac_address, target):
                 combo_box = self.cellWidget(row, column)
                 combo_box.setCurrentText("Вкл")
-                self.filter_should_be_added.emit(router_ip_address, mac_address, target)
+                self.filter_should_be_added.emit(router_ip_address, mac_address, target, comment)
 
     @pyqtSlot(str, str)
     def add_filter_to_table(self, mac_address: str, target: str) -> None:
@@ -341,18 +350,20 @@ class FilterTable(QTableWidget):
         if (mac_address, target) in self._mac_and_targets:
             logging.warning("Filter %s %s already exists", mac_address, target)
             return
-        self._mac_and_targets.add((mac_address, target))
+        comment = ""
+        self._mac_and_targets[(mac_address, target)] = comment
         for _, statistics, _ in self._data:
-            statistics[(mac_address, target)] = None
-        mac_and_targets = sorted(list(self._mac_and_targets), key=lambda x: (x[0], x[1]))
-        row = mac_and_targets.index((mac_address, target)) + 2
-        self._add_new_filter(row, mac_address, target)
+            statistics[(mac_address, target)] = {}
+        mac_and_targets = sorted([(*mac_and_target, comment) for mac_and_target, comment in
+                                  self._mac_and_targets.items()], key=lambda x: (x[0], x[1]))
+        row = mac_and_targets.index((mac_address, target, comment)) + 2
+        self._add_new_filter(row, mac_address, target, comment)
         self._add_button_to_delete(row, len(self._data) + 1, mac_address, target)
         button = self._add_button_to_distribute(row, len(self._data) + 2, mac_address, target)
         button.click()
 
     @pyqtSlot(str, dict, bool)
-    def add_statistics(self, new_router_ip_address: str, new_router_statistics: Dict[Tuple[str, str], Optional[str]],
+    def add_statistics(self, new_router_ip_address: str, new_router_statistics: Dict[Tuple[str, str], Dict[str, str]],
                        bad_router: bool) -> None:
         """
         Slot to add new statistics for router on table.
@@ -374,11 +385,11 @@ class FilterTable(QTableWidget):
         row_and_column = self._get_row_and_column(self.sender())
         if row_and_column:
             row = row_and_column[0]
-            mac_address, target = self.cellWidget(row, 0).text().split()
+            mac_address, target = self.cellWidget(row, 0).text().split("\n")[0].split()
             for router_ip_address in self._get_routers_with_filter(mac_address, target):
                 self.filter_should_be_deleted.emit(router_ip_address, mac_address, target)
             self.removeRow(row)
-            self._mac_and_targets.remove((mac_address, target))
+            self._mac_and_targets.pop((mac_address, target))
             for _, statistics, _ in self._data:
                 statistics.pop((mac_address, target))
 
@@ -418,7 +429,7 @@ class FilterTable(QTableWidget):
                      "Выкл": "disable",
                      "-": ""}.get(current_text)
             router_ip_address = self.cellWidget(1, column).text()
-            mac_address, target = self.cellWidget(row, 0).text().split()
+            mac_address, target = self.cellWidget(row, 0).text().split("\n")[0].split()
             self.filter_should_be_changed.emit(router_ip_address, mac_address, target, state)
 
     @pyqtSlot()
@@ -443,7 +454,7 @@ class FilterTable(QTableWidget):
         :param position: position for menu.
         """
 
-        filter_name = label.text()
+        filter_name = label.text().split("\n")[0]
         action_delete: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "delete.png")),
                                          f"Удалить фильтр {filter_name} из всех коммутаторов")
         button_to_delete = self.cellWidget(row, len(self._data) + 1)
