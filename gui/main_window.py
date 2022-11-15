@@ -63,6 +63,7 @@ class MainWindow(QMainWindow):
         """
 
         logging_forwarder.log_received.connect(self.log_table.add_log)
+        self.filter_table.comment_should_be_added.connect(self._routers.add_comment_to_filter)
         self.filter_table.dialog_window_should_be_displayed.connect(self.show_dialog_window)
         self.filter_table.dialog_window_should_be_displayed.connect(self._routers.collect_data_for_dialog_window)
         self.filter_table.filter_should_be_added.connect(self._routers.add_filter_to_router)
@@ -166,6 +167,7 @@ class MainWindow(QMainWindow):
         for widget in (self.filter_table, self.button_add_mac_address, self.button_add_router_ip_address,
                        self.line_edit_mac_address, self.line_edit_router_ip_address):
             widget.setEnabled(enable)
+            widget.update()
 
     @pyqtSlot(DialogMode, str)
     def show_dialog_window(self, mode: DialogMode, router_ip_address: str) -> None:

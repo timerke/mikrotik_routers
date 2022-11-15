@@ -6,6 +6,8 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot, QPoint, Qt
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (QAction, QComboBox, QHeaderView, QLabel, QMenu, QPushButton, QSizePolicy, QTableWidget,
                              QWidget)
+from gui.filter_dialog_window import FilterDialog
+from gui.filter_widget import FilterWidget
 from gui.router_params_dialog_window import DialogMode
 from gui.utils import DIR_MEDIA
 from gui.vertical_label import VerticalLabel
@@ -18,6 +20,7 @@ class FilterTable(QTableWidget):
 
     INITIAL_COLUMN_COUNT: int = 4
     INITIAL_ROW_COUNT: int = 2
+    comment_should_be_added: pyqtSignal = pyqtSignal(str, str, str, str)
     dialog_window_should_be_displayed: pyqtSignal = pyqtSignal(DialogMode, str)
     filter_should_be_added: pyqtSignal = pyqtSignal(str, str, str, str)
     filter_should_be_changed: pyqtSignal = pyqtSignal(str, str, str, str)
@@ -66,7 +69,7 @@ class FilterTable(QTableWidget):
 
         button: QPushButton = QPushButton("")
         button.setIcon(QIcon(os.path.join(DIR_MEDIA, "arrow.png")))
-        button.setToolTip(f"Установить фильтр {mac_address} {target.upper()} на все коммутаторы")
+        button.setToolTip(f"Установить фильтр {mac_address} {target} на все коммутаторы")
         button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         button.clicked.connect(self.add_filter_to_all_routers)
         self.buttons_to_distribute.append(button)
@@ -82,8 +85,7 @@ class FilterTable(QTableWidget):
         :param comment: comment for filter.
         """
 
-        label_filter: QLabel = QLabel(f"{mac_address} {target}" if not comment else
-                                      f"{mac_address} {target}\n{comment}")
+        label_filter: FilterWidget = FilterWidget(mac_address, target, comment)
         label_filter.setContextMenuPolicy(Qt.CustomContextMenu)
         label_filter.customContextMenuRequested.connect(partial(self.show_context_menu_for_filter, label_filter, row))
         self.setCellWidget(row, 0, label_filter)
@@ -280,6 +282,20 @@ class FilterTable(QTableWidget):
         self.setCellWidget(1, 2, VerticalLabel("Удалить"))
         self.setCellWidget(1, 3, VerticalLabel("Распространить"))
 
+    def _send_signals_to_change_filter_comment(self, mac_address: str, target: str, comment: str) -> None:
+        """
+        Method sends signals to all routers to change comment on given filter.
+        :param mac_address: MAC address of filter;
+        :param target: target (SRC or DST) of filter;
+        :param comment: comment for filter.
+        """
+
+        for router_ip_address, router_statistics, bad_router in self._data:
+            if bad_router:
+                continue
+            if router_statistics.get((mac_address, target), {}):
+                self.comment_should_be_added.emit(router_ip_address, mac_address, target, comment)
+
     def _set_column_size_policy(self) -> None:
         column_number = self.INITIAL_COLUMN_COUNT + len(self._data) - 1
         for column in range(column_number):
@@ -331,9 +347,7 @@ class FilterTable(QTableWidget):
         row_and_column = self._get_row_and_column(self.sender())
         if row_and_column:
             row = row_and_column[0]
-            result = self.cellWidget(row, 0).text().split("\n")
-            mac_address, target = result[0].split()
-            comment = "" if len(result) == 1 else result[1]
+            mac_address, target, comment = self.cellWidget(row, 0).get_data()
             for column, router_ip_address in self._get_routers_without_filter(mac_address, target):
                 combo_box = self.cellWidget(row, column)
                 combo_box.setCurrentText("Вкл")
@@ -349,6 +363,8 @@ class FilterTable(QTableWidget):
 
         if (mac_address, target) in self._mac_and_targets:
             logging.warning("Filter %s %s already exists", mac_address, target)
+            return
+        if not self._data:
             return
         comment = ""
         self._mac_and_targets[(mac_address, target)] = comment
@@ -385,7 +401,7 @@ class FilterTable(QTableWidget):
         row_and_column = self._get_row_and_column(self.sender())
         if row_and_column:
             row = row_and_column[0]
-            mac_address, target = self.cellWidget(row, 0).text().split("\n")[0].split()
+            mac_address, target = self.cellWidget(row, 0).get_mac_address_and_target()
             for router_ip_address in self._get_routers_with_filter(mac_address, target):
                 self.filter_should_be_deleted.emit(router_ip_address, mac_address, target)
             self.removeRow(row)
@@ -429,7 +445,7 @@ class FilterTable(QTableWidget):
                      "Выкл": "disable",
                      "-": ""}.get(current_text)
             router_ip_address = self.cellWidget(1, column).text()
-            mac_address, target = self.cellWidget(row, 0).text().split("\n")[0].split()
+            mac_address, target = self.cellWidget(row, 0).get_mac_address_and_target()
             self.filter_should_be_changed.emit(router_ip_address, mac_address, target, state)
 
     @pyqtSlot()
@@ -445,16 +461,16 @@ class FilterTable(QTableWidget):
         self._mac_and_targets.clear()
         self.table_should_be_updated.emit()
 
-    @pyqtSlot(QLabel, int, QPoint)
-    def show_context_menu_for_filter(self, label: QLabel, row: int, position: QPoint) -> None:
+    @pyqtSlot(FilterWidget, int, QPoint)
+    def show_context_menu_for_filter(self, filter_widget: FilterWidget, row: int, position: QPoint) -> None:
         """
         Slot shows context menu for filter.
-        :param label: label for filter;
+        :param filter_widget: widget for filter;
         :param row: row for label in table;
         :param position: position for menu.
         """
 
-        filter_name = label.text().split("\n")[0]
+        filter_name = filter_widget.get_filter_name()
         action_delete: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "delete.png")),
                                          f"Удалить фильтр {filter_name} из всех коммутаторов")
         button_to_delete = self.cellWidget(row, len(self._data) + 1)
@@ -463,10 +479,14 @@ class FilterTable(QTableWidget):
                                              f"Добавить фильтр {filter_name} во все коммутаторы")
         button_to_distribute = self.cellWidget(row, len(self._data) + 2)
         action_distribute.triggered.connect(button_to_distribute.click)
+        action_change_comment: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "change.png")),
+                                                 f"Изменить комментарий для фильтра {filter_name}")
+        action_change_comment.triggered.connect(lambda: self.show_dialog_window_for_filter(filter_widget))
         menu: QMenu = QMenu(self)
         menu.addAction(action_delete)
         menu.addAction(action_distribute)
-        menu.exec_(label.mapToGlobal(position))
+        menu.addAction(action_change_comment)
+        menu.exec_(filter_widget.mapToGlobal(position))
 
     @pyqtSlot(QLabel, int, QPoint)
     def show_context_menu_for_router(self, label: QLabel, column: int, position: QPoint) -> None:
@@ -489,3 +509,16 @@ class FilterTable(QTableWidget):
         menu.addAction(action_add_params)
         menu.addAction(action_delete)
         menu.exec_(label.mapToGlobal(position))
+
+    @pyqtSlot(FilterWidget)
+    def show_dialog_window_for_filter(self, filter_widget: FilterWidget) -> None:
+        """
+        Slot shows dialog window to change filter comment.
+        :param filter_widget: widget for filter.
+        """
+
+        dialog_window = FilterDialog(filter_widget.comment)
+        if dialog_window.exec_():
+            comment = dialog_window.get_comment()
+            self._send_signals_to_change_filter_comment(filter_widget.mac_address, filter_widget.target, comment)
+            filter_widget.set_comment(comment)

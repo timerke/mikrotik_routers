@@ -51,7 +51,7 @@ class Routers(QThread):
                 return True
         return False
 
-    @pyqtSlot(str, str, str)
+    @pyqtSlot(str, str, str, str)
     def add_comment_to_filter(self, router_ip_address: str, mac_address: str, target: str, comment: str) -> None:
         """
         Slot adds comment to given filter on given router.

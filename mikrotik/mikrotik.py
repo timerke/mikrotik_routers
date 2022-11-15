@@ -8,11 +8,14 @@ class MikroTikRouter:
     Class to work with MikroTik routers.
     """
 
+    TIMEOUT = 0.5
+
     def __init__(self, ip_address: str, user: str, password: str) -> None:
         self._ip_address: str = ip_address
         self._password: str = password
         self._user: str = user
-        self._router: ros_api.Api = ros_api.Api(self._ip_address, user=self._user, password=self._password)
+        self._router: ros_api.Api = ros_api.Api(self._ip_address, user=self._user, password=self._password,
+                                                timeout=self.TIMEOUT)
 
     @staticmethod
     def _get_mac_and_target(item: Dict[str, str]) -> Dict[str, str]:
