@@ -8,7 +8,7 @@ class MikroTikRouter:
     Class to work with MikroTik routers.
     """
 
-    TIMEOUT = 0.5
+    TIMEOUT: float = 0.5
 
     def __init__(self, ip_address: str, user: str, password: str) -> None:
         self._ip_address: str = ip_address

@@ -13,7 +13,7 @@ class VerticalLabel(QLabel):
     def __init__(self, *args) -> None:
         QLabel.__init__(self, *args)
 
-    def paintEvent(self, event: QPaintEvent):
+    def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)
         painter.translate(0, self.height())
         painter.rotate(-90)

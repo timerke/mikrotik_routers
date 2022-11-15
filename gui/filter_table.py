@@ -272,9 +272,7 @@ class FilterTable(QTableWidget):
         self.setRowCount(self.INITIAL_ROW_COUNT)
         self.setCellWidget(0, 0, self.button_update_table)
         self.button_update_table.clicked.connect(self.send_signal_to_update_table)
-        label_routers = QLabel("Коммутаторы")
-        label_routers.setAlignment(Qt.AlignCenter)
-        self.setCellWidget(0, 1, label_routers)
+        self._set_routers_label()
 
         label_mac_addresses = QLabel("MAC адреса")
         label_mac_addresses.setAlignment(Qt.AlignBottom)
@@ -301,6 +299,11 @@ class FilterTable(QTableWidget):
         for column in range(column_number):
             self.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeToContents)
 
+    def _set_routers_label(self) -> None:
+        label_routers = QLabel("Коммутаторы")
+        label_routers.setAlignment(Qt.AlignCenter)
+        self.setCellWidget(0, 1, label_routers)
+
     def _update_data(self, new_router_ip_address: str, new_router_statistics: Dict[Tuple[str, str], Dict[str, str]],
                      bad_router: bool) -> List[Tuple[str, str, str]]:
         """
@@ -320,7 +323,7 @@ class FilterTable(QTableWidget):
                                   self._mac_and_targets.items()], key=lambda x: (x[0], x[1]))
         self._data.append((new_router_ip_address, new_router_statistics, bad_router))
         for _, router_statistics, _ in self._data:
-            for mac_and_target in self._mac_and_targets.keys():
+            for mac_and_target in self._mac_and_targets:
                 if mac_and_target not in router_statistics:
                     router_statistics[mac_and_target] = {}
         return mac_and_targets
@@ -419,6 +422,8 @@ class FilterTable(QTableWidget):
 
         if len(self._data) > 1:
             self.removeColumn(column)
+            if not self.cellWidget(0, 1) or not self.cellWidget(0, 1).text():
+                self._set_routers_label()
         else:
             self._clear_content_in_table()
         router_index = None

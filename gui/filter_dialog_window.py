@@ -6,6 +6,9 @@ from gui import utils as ut
 
 
 class FilterDialog(QDialog):
+    """
+    Class for dialog window to set comment for filter.
+    """
 
     def __init__(self, comment: str) -> None:
         """
