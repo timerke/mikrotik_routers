@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QAction, QComboBox, QHeaderView, QLabel, QMenu, QPu
                              QWidget)
 from gui.filter_dialog_window import FilterDialog
 from gui.filter_widget import FilterWidget
-from gui.router_params_dialog_window import DialogMode
+from gui.router_dialog_window import DialogMode
 from gui.utils import DIR_MEDIA
 from gui.vertical_label import VerticalLabel
 

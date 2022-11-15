@@ -9,7 +9,7 @@ from gui import utils as ut
 from gui.filter_table import FilterTable
 from gui.log_table import LogTable
 from gui.logger import LoggingHandler
-from gui.router_params_dialog_window import DialogMode, RouterDialog
+from gui.router_dialog_window import DialogMode, RouterDialog
 from mikrotik import Routers
 
 
