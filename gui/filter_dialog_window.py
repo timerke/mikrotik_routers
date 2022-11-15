@@ -22,7 +22,7 @@ class FilterDialog(QDialog):
         """
 
         loadUi(os.path.join(ut.DIR_MEDIA, "filter_params_dialog_window.ui"), self)
-        self.setWindowTitle("Настройки коммутаторов")
+        self.setWindowTitle("Настройки фильтра")
         self.setWindowIcon(QIcon(os.path.join(ut.DIR_MEDIA, "icon.png")))
         self.line_edit_comment.setText(self._comment)
         self.line_edit_comment.returnPressed.connect(self.accept)
