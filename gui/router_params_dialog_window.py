@@ -13,7 +13,7 @@ class DialogMode(Enum):
     SINGLE = auto()
 
 
-class RouterParamsDialogWindow(QDialog):
+class RouterDialog(QDialog):
     """
     Class to change parameters for router.
     """
@@ -124,4 +124,4 @@ class RouterParamsDialogWindow(QDialog):
         self.combo_box_ip_addresses.setEnabled(mode is DialogMode.ALL)
         self.setFixedSize(self.sizeHint())
         self.layout().setSizeConstraint(QLayout.SetFixedSize)
-        self.show()
+        self.exec()

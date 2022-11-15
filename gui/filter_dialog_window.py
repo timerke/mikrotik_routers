@@ -31,6 +31,7 @@ class FilterDialog(QDialog):
         self.line_edit_comment.returnPressed.connect(self.accept)
         self.button_ok.clicked.connect(self.accept)
         self.button_cancel.clicked.connect(self.reject)
+        self.setFixedSize(self.sizeHint())
 
     def get_comment(self) -> str:
         """

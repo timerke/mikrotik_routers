@@ -9,7 +9,7 @@ from gui import utils as ut
 from gui.filter_table import FilterTable
 from gui.log_table import LogTable
 from gui.logger import LoggingHandler
-from gui.router_params_dialog_window import DialogMode, RouterParamsDialogWindow
+from gui.router_params_dialog_window import DialogMode, RouterDialog
 from mikrotik import Routers
 
 
@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.filter_table: FilterTable = FilterTable()
         self.log_table: LogTable = LogTable()
-        self._dialog_window: RouterParamsDialogWindow = RouterParamsDialogWindow()
+        self._dialog_window: RouterDialog = RouterDialog()
         self._routers: Routers = Routers()
         self._thread: QThread = QThread(parent=self)
         self._thread.setTerminationEnabled(True)
@@ -64,8 +64,8 @@ class MainWindow(QMainWindow):
 
         logging_forwarder.log_received.connect(self.log_table.add_log)
         self.filter_table.comment_should_be_added.connect(self._routers.add_comment_to_filter)
-        self.filter_table.dialog_window_should_be_displayed.connect(self.show_dialog_window)
         self.filter_table.dialog_window_should_be_displayed.connect(self._routers.collect_data_for_dialog_window)
+        self.filter_table.dialog_window_should_be_displayed.connect(self.show_dialog_window)
         self.filter_table.filter_should_be_added.connect(self._routers.add_filter_to_router)
         self.filter_table.filter_should_be_changed.connect(self._routers.change_filter_state)
         self.filter_table.filter_should_be_deleted.connect(self._routers.delete_filter_from_router)
@@ -94,8 +94,8 @@ class MainWindow(QMainWindow):
         self.vertical_layout_for_filter_table.addWidget(self.filter_table)
         self.vertical_layout_for_log_table.addWidget(self.log_table)
 
-        self.action_router_params.triggered.connect(lambda: self.show_dialog_window(DialogMode.ALL, ""))
         self.action_router_params.triggered.connect(self._routers.collect_data_for_dialog_window)
+        self.action_router_params.triggered.connect(lambda: self.show_dialog_window(DialogMode.ALL, ""))
         mac_address_validator = QRegExpValidator(QRegExp(r"^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2}) (SRC|src|DST|dst)$"))
         self.line_edit_mac_address.setValidator(mac_address_validator)
         self.line_edit_mac_address.returnPressed.connect(self.add_mac_address)
