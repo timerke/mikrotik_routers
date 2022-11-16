@@ -143,6 +143,12 @@ class Routers(QThread):
                 router.add_filter(mac_address, target, comment, state)
             logging.info("Filter %s %s state on the router %s was changed", mac_address, target, router_ip_address)
         except Exception:
+            if router:
+                statistics = router.get_statistics()
+                disabled = statistics.get((mac_address, target), {}).get("disabled", "-")
+            else:
+                disabled = "-"
+            self.filter_added.emit(router_ip_address, mac_address, target, comment, disabled)
             logging.error("Failed to change filter %s %s state on the router %s", mac_address, target,
                           router_ip_address)
         finally:
