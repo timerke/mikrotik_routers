@@ -87,7 +87,7 @@ class FilterTable(QTableWidget):
 
         label_filter: FilterWidget = FilterWidget(mac_address, target, comment)
         label_filter.setContextMenuPolicy(Qt.CustomContextMenu)
-        label_filter.customContextMenuRequested.connect(partial(self.show_context_menu_for_filter, label_filter, row))
+        label_filter.customContextMenuRequested.connect(partial(self.show_context_menu_for_filter, label_filter))
         self.setCellWidget(row, 0, label_filter)
 
     def _add_new_filter(self, row: int, mac_address: str, target: str, comment: str) -> None:
@@ -298,6 +298,7 @@ class FilterTable(QTableWidget):
         column_number = self.INITIAL_COLUMN_COUNT + len(self._data) - 1
         for column in range(column_number):
             self.horizontalHeader().setSectionResizeMode(column, QHeaderView.ResizeToContents)
+        self.viewport().update()
 
     def _set_routers_label(self) -> None:
         label_routers = QLabel("Коммутаторы")
@@ -466,32 +467,33 @@ class FilterTable(QTableWidget):
         self._mac_and_targets.clear()
         self.table_should_be_updated.emit()
 
-    @pyqtSlot(FilterWidget, int, QPoint)
-    def show_context_menu_for_filter(self, filter_widget: FilterWidget, row: int, position: QPoint) -> None:
+    @pyqtSlot(FilterWidget, QPoint)
+    def show_context_menu_for_filter(self, filter_widget: FilterWidget, position: QPoint) -> None:
         """
         Slot shows context menu for filter.
         :param filter_widget: widget for filter;
-        :param row: row for label in table;
         :param position: position for menu.
         """
 
-        filter_name = filter_widget.get_filter_name()
-        action_delete: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "delete.png")),
-                                         f"Удалить фильтр {filter_name} из всех коммутаторов")
-        button_to_delete = self.cellWidget(row, len(self._data) + 1)
-        action_delete.triggered.connect(button_to_delete.click)
-        action_distribute: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "arrow.png")),
-                                             f"Добавить фильтр {filter_name} во все коммутаторы")
-        button_to_distribute = self.cellWidget(row, len(self._data) + 2)
-        action_distribute.triggered.connect(button_to_distribute.click)
-        action_change_comment: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "change.png")),
-                                                 f"Изменить комментарий для фильтра {filter_name}")
-        action_change_comment.triggered.connect(lambda: self.show_dialog_window_for_filter(filter_widget))
-        menu: QMenu = QMenu(self)
-        menu.addAction(action_delete)
-        menu.addAction(action_distribute)
-        menu.addAction(action_change_comment)
-        menu.exec_(filter_widget.mapToGlobal(position))
+        row_and_column = self._get_row_and_column(filter_widget)
+        if row_and_column:
+            filter_name = filter_widget.get_filter_name()
+            action_delete: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "delete.png")),
+                                             f"Удалить фильтр {filter_name} из всех коммутаторов")
+            button_to_delete = self.cellWidget(row_and_column[0], len(self._data) + 1)
+            action_delete.triggered.connect(button_to_delete.click)
+            action_distribute: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "arrow.png")),
+                                                 f"Установить фильтр {filter_name} на все коммутаторы")
+            button_to_distribute = self.cellWidget(row_and_column[0], len(self._data) + 2)
+            action_distribute.triggered.connect(button_to_distribute.click)
+            action_change_comment: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "change.png")),
+                                                     f"Изменить комментарий для фильтра {filter_name}")
+            action_change_comment.triggered.connect(lambda: self.show_dialog_window_for_filter(filter_widget))
+            menu: QMenu = QMenu(self)
+            menu.addAction(action_delete)
+            menu.addAction(action_distribute)
+            menu.addAction(action_change_comment)
+            menu.exec_(filter_widget.mapToGlobal(position))
 
     @pyqtSlot(QLabel, int, QPoint)
     def show_context_menu_for_router(self, label: QLabel, column: int, position: QPoint) -> None:

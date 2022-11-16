@@ -116,7 +116,7 @@ class MikroTikRouter:
         if comment:
             self._router.talk(("/interface/bridge/filter/add", "=action=accept", "=chain=forward", "=disabled=false",
                                f"={target.lower()}-mac-address={mac_address}/FF:FF:FF:FF:FF:FF",
-                               f"=comment={comment}"))
+                               f"=comment={self._encode_text(comment)}"))
         else:
             self._router.talk(f"/interface/bridge/filter/add\n=action=accept\n=chain=forward\n=disabled=false"
                               f"\n={target.lower()}-mac-address={mac_address}/FF:FF:FF:FF:FF:FF")

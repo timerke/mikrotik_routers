@@ -87,3 +87,4 @@ class FilterWidget(QWidget):
         self._comment = comment
         self.label_comment.setText(comment[:self.MAX_COMMENT_LENGTH])
         self.label_comment.setVisible(bool(comment))
+        self.setToolTip(comment)
