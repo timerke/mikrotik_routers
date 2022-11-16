@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 import chardet
 import ros_api
 
@@ -105,20 +105,21 @@ class MikroTikRouter:
             return True
         return False
 
-    def add_filter(self, mac_address: str, target: str, comment: str) -> None:
+    def add_filter(self, mac_address: str, target: str, comment: str, state: Optional[str] = "false") -> None:
         """
         Method adds new filter to router.
         :param mac_address: MAC address of filter;
         :param target: target (SRC or DST) of filter;
-        :param comment: comment for filter.
+        :param comment: comment for filter;
+        :param state: required filter state (enabled or disabled).
         """
 
         if comment:
-            self._router.talk(("/interface/bridge/filter/add", "=action=accept", "=chain=forward", "=disabled=false",
+            self._router.talk(("/interface/bridge/filter/add", "=action=accept", "=chain=forward", f"=disabled={state}",
                                f"={target.lower()}-mac-address={mac_address}/FF:FF:FF:FF:FF:FF",
                                f"=comment={self._encode_text(comment)}"))
         else:
-            self._router.talk(f"/interface/bridge/filter/add\n=action=accept\n=chain=forward\n=disabled=false"
+            self._router.talk(f"/interface/bridge/filter/add\n=action=accept\n=chain=forward\n=disabled={state}"
                               f"\n={target.lower()}-mac-address={mac_address}/FF:FF:FF:FF:FF:FF")
 
     def close(self) -> None:
@@ -145,18 +146,20 @@ class MikroTikRouter:
                 filter_was_deleted = True
         return filter_was_deleted
 
-    def enable_filter(self, mac_address: str, target: str, state: str) -> None:
+    def enable_filter(self, mac_address: str, target: str, state: str) -> bool:
         """
         Method enables or disables some filter on router.
         :param mac_address: MAC address of filter;
         :param target: target (SRC or DST) of filter;
         :param state: enable or disable.
+        :return: True if filter was enabled or disabled.
         """
 
         for index, filter_data in enumerate(self._get_total_statistics()):
             if filter_data["mac"] == mac_address and filter_data["target"] == target:
                 self._router.talk(f"/interface/bridge/filter/{state}\n=numbers={index}")
-                break
+                return True
+        return False
 
     def get_indices_of_drop_filters(self) -> List[int]:
         """

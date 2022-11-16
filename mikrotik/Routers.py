@@ -12,6 +12,7 @@ class Routers(QThread):
     """
 
     data_for_dialog_window_send: pyqtSignal = pyqtSignal(dict, list)
+    filter_added: pyqtSignal = pyqtSignal(str, str, str, str, str)
     router_ip_address_added: pyqtSignal = pyqtSignal()
     statistics_finished: pyqtSignal = pyqtSignal()
     statistics_received: pyqtSignal = pyqtSignal(str, dict, bool)
@@ -89,10 +90,13 @@ class Routers(QThread):
             drop_indices = router.get_indices_of_drop_filters()
             if drop_indices:
                 router.move_filter(filter_index, drop_indices[0])
+            disabled = "false"
             logging.info("Filter %s %s was added to router %s", mac_address, target, router_ip_address)
         except Exception:
+            disabled = "-"
             logging.error("Failed to add filter %s %s to router %s", mac_address, target, router_ip_address)
         finally:
+            self.filter_added.emit(router_ip_address, mac_address, target, comment, disabled)
             if router is not None:
                 router.close()
 
@@ -118,20 +122,25 @@ class Routers(QThread):
         self.router_ip_address_added.emit()
         logging.info("Added IP address %s", str(ip_address))
 
-    @pyqtSlot(str, str, str, str)
-    def change_filter_state(self, router_ip_address: str, mac_address: str, target: str, state: str) -> None:
+    @pyqtSlot(str, str, str, str, str)
+    def change_filter_state(self, router_ip_address: str, mac_address: str, target: str, comment: str, state: str
+                            ) -> None:
         """
         Slot changes filter state on router with given IP address.
         :param router_ip_address: router IP address;
         :param mac_address: MAC address of filter;
         :param target: target (SRC or DST) of filter;
+        :param comment: comment fot filter;
         :param state: new state of filter.
         """
 
         try:
             user, password = self._get_user_and_password_for_router(router_ip_address)
             router = MikroTikRouter(router_ip_address, user, password)
-            router.enable_filter(mac_address, target, state)
+            if not router.enable_filter(mac_address, target, state):
+                state = {"enable": "false",
+                         "disable": "true"}.get(state, "")
+                router.add_filter(mac_address, target, comment, state)
             logging.info("Filter %s %s state on the router %s was changed", mac_address, target, router_ip_address)
         except Exception:
             logging.error("Failed to change filter %s %s state on the router %s", mac_address, target,

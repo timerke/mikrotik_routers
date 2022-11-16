@@ -1,4 +1,4 @@
-from mikrotik.Routers import Routers
+from mikrotik.routers import Routers
 
 
 __all__ = ["Routers"]

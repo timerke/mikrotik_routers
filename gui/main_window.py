@@ -74,6 +74,7 @@ class MainWindow(QMainWindow):
         self.filter_table.table_should_be_updated.connect(self._routers.get_statistics)
         self.mac_address_should_be_added.connect(self.filter_table.add_filter_to_table)
         self._routers.data_for_dialog_window_send.connect(self._dialog_window.set_new_data)
+        self._routers.filter_added.connect(self.filter_table.change_filter_state_for_router)
         self._routers.router_ip_address_added.connect(self.filter_table.send_signal_to_update_table)
         self._routers.statistics_finished.connect(lambda: self.enable_widgets(True))
         self._routers.statistics_received.connect(self.filter_table.add_statistics)
