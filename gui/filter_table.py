@@ -143,8 +143,7 @@ class FilterTable(QTableWidget):
         label_router.setFixedWidth(40)
         label_router.setAlignment(Qt.AlignCenter)
         label_router.setContextMenuPolicy(Qt.CustomContextMenu)
-        label_router.customContextMenuRequested.connect(partial(self.show_context_menu_for_router, label_router,
-                                                                column))
+        label_router.customContextMenuRequested.connect(partial(self.show_context_menu_for_router, label_router))
         self.setCellWidget(1, column, label_router)
 
     def _clear_content_in_table(self) -> None:
@@ -461,16 +460,17 @@ class FilterTable(QTableWidget):
             for _, statistics, _ in self._data:
                 statistics.pop((mac_address, target))
 
-    @pyqtSlot(int, str)
-    def delete_router(self, column: int, router_ip_address: str) -> None:
+    @pyqtSlot(str)
+    def delete_router(self, router_ip_address: str) -> None:
         """
         Slot deletes router from table.
-        :param column: column of router in table;
         :param router_ip_address: IP address of router.
         """
 
         if len(self._data) > 1:
-            self.removeColumn(column)
+            column = self._get_column_for_router(router_ip_address)
+            if column is not None:
+                self.removeColumn(column)
             if not self.cellWidget(0, 1) or not self.cellWidget(0, 1).text():
                 self._set_routers_label()
         else:
@@ -543,12 +543,11 @@ class FilterTable(QTableWidget):
             menu.addAction(action_change_comment)
             menu.exec_(filter_widget.mapToGlobal(position))
 
-    @pyqtSlot(QLabel, int, QPoint)
-    def show_context_menu_for_router(self, label: QLabel, column: int, position: QPoint) -> None:
+    @pyqtSlot(QLabel, QPoint)
+    def show_context_menu_for_router(self, label: QLabel, position: QPoint) -> None:
         """
         Slot shows context menu for router.
         :param label: label of router;
-        :param column: column of router in table;
         :param position: position for menu.
         """
 
@@ -559,7 +558,7 @@ class FilterTable(QTableWidget):
                                                                                                 router_ip_address))
         action_delete: QAction = QAction(QIcon(os.path.join(DIR_MEDIA, "delete.png")),
                                          f"Удалить коммутатор {router_ip_address}")
-        action_delete.triggered.connect(lambda: self.delete_router(column, router_ip_address))
+        action_delete.triggered.connect(lambda: self.delete_router(router_ip_address))
         menu: QMenu = QMenu()
         menu.addAction(action_add_params)
         menu.addAction(action_delete)
