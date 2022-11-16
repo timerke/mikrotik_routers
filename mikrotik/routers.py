@@ -121,6 +121,7 @@ class Routers(QThread):
         self._routers = sorted(self._routers, key=lambda x: x["ip_address"])
         self.router_ip_address_added.emit()
         logging.info("Added IP address %s", str(ip_address))
+        self.save_config_file()
 
     @pyqtSlot(str, str, str, str, str)
     def change_filter_state(self, router_ip_address: str, mac_address: str, target: str, comment: str, state: str
@@ -204,6 +205,8 @@ class Routers(QThread):
             logging.info("Router %s was deleted", router_ip_address)
         except Exception:
             logging.error("Failed to delete router %s", router_ip_address)
+        else:
+            self.save_config_file()
 
     @pyqtSlot()
     def get_statistics(self) -> None:
@@ -255,3 +258,4 @@ class Routers(QThread):
         self._default_data = new_default_data
         self._routers = new_routers_data
         logging.info("New parameters were set for routers")
+        self.save_config_file()
