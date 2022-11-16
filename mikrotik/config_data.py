@@ -84,7 +84,10 @@ def read_config_file() -> Tuple[Dict[str, str], List[Dict[str, str]]]:
     """
 
     config_parser = ConfigParser()
-    config_parser.read(CONFIG_PATH)
+    try:
+        config_parser.read(CONFIG_PATH)
+    except Exception:
+        logging.error("Failed to read config file")
     return _read_default_user_and_password(config_parser), _read_routers_from_config(config_parser)
 
 
@@ -100,3 +103,4 @@ def save_config_file(default_data: Dict[str, str], routers: List[Dict[str, str]]
     _save_routers_to_config_file(config_parser, routers)
     with open(CONFIG_PATH, "w", encoding="utf-8") as file:
         config_parser.write(file)
+    logging.debug("Routers data saved to config file")

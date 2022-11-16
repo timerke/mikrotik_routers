@@ -238,13 +238,11 @@ class Routers(QThread):
     @pyqtSlot()
     def read_config_file(self) -> None:
         self._default_data, self._routers = read_config_file()
-        logging.debug("Routers data read from config file")
         self.get_statistics()
 
     @pyqtSlot()
     def save_config_file(self) -> None:
         save_config_file(self._default_data, self._routers)
-        logging.debug("Routers data saved to config file")
 
     @pyqtSlot(dict, list)
     def set_new_default_data_and_routers(self, new_default_data: Dict[str, str],
