@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, List, Tuple
+import chardet
 import ros_api
 
 
@@ -16,6 +17,36 @@ class MikroTikRouter:
         self._user: str = user
         self._router: ros_api.Api = ros_api.Api(self._ip_address, user=self._user, password=self._password,
                                                 timeout=self.TIMEOUT)
+
+    @staticmethod
+    def _decode_text(raw_text: str) -> str:
+        """
+        Method correctly decodes the text from the router containing Cyrillic characters.
+        :param raw_text: initial text from router.
+        :return: correctly decoded text.
+        """
+
+        decoded_text = raw_text
+        if raw_text:
+            initial_bytes = eval(f'b"{raw_text}"')
+            encoding = chardet.detect(initial_bytes)["encoding"]
+            try:
+                decoded_text = initial_bytes.decode(encoding)
+            except Exception:
+                logging.warning("Failed to decode text '%s'", raw_text)
+        return decoded_text
+
+    @staticmethod
+    def _encode_text(raw_text: str) -> str:
+        """
+        Method correctly encodes text containing Cyrillic characters to send this
+        text to router.
+        :param raw_text: initial text.
+        :return: correctly encoded text.
+        """
+
+        initial_bytes = raw_text.encode()
+        return repr(initial_bytes)[2:-1]
 
     @staticmethod
     def _get_mac_and_target(item: Dict[str, str]) -> Dict[str, str]:
@@ -50,7 +81,7 @@ class MikroTikRouter:
         for item in result:
             data = {"action": item.get("action", ""),
                     "disabled": item.get("disabled", ""),
-                    "comment": item.get("comment", "")}
+                    "comment": self._decode_text(item.get("comment", ""))}
             data.update(**self._get_mac_and_target(item))
             statistics.append(data)
         return statistics
@@ -69,7 +100,7 @@ class MikroTikRouter:
             if filter_data["mac"] == mac_address and filter_data["target"] == target:
                 indices.append(str(index))
         if indices:
-            self._router.talk(("/interface/bridge/filter/comment", f"=comment={comment}",
+            self._router.talk(("/interface/bridge/filter/comment", f"=comment={self._encode_text(comment)}",
                                f"=numbers={','.join(indices)}"))
             return True
         return False

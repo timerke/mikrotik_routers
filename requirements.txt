@@ -1,3 +1,4 @@
+chardet
 PyQt5==5.15.0
 PyQt5-Qt5==5.15.2
 PyQt5-sip==12.9.0
